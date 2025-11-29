@@ -15,20 +15,79 @@ from utils import (
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Harsha's AI Resume Matcher",
-    page_icon="🧠",
+    page_icon="🤖",
     layout="wide",
 )
+
+# -------------------- DARK AI BACKGROUND + GLASS UI --------------------
+dark_ai_css = """
+<style>
+/* FULL DARK AI BACKGROUND */
+[data-testid="stAppViewContainer"] {
+    background-image: url("https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=1650&q=80");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+/* Remove default header background */
+[data-testid="stHeader"] {
+    background: rgba(0,0,0,0);
+}
+
+/* GLASS EFFECT MAIN CONTAINER */
+.block-container {
+    background: rgba(0, 0, 0, 0.55);
+    padding: 35px 45px;
+    border-radius: 18px;
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.50);
+    color: #ffffff;
+}
+
+/* SIDEBAR WRAPPER */
+[data-testid="stSidebar"] {
+    background: rgba(0,0,0,0);  /* transparent behind glass panel */
+}
+
+/* SIDEBAR GLASS PANEL */
+[data-testid="stSidebar"] > div:first-child {
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 12px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+/* FORCE ALL SIDEBAR TEXT TO WHITE */
+[data-testid="stSidebar"] * {
+    color: #f5f5f5 !important;
+}
+
+/* GENERAL TEXT COLOR (CENTER) */
+h1, h2, h3, h4, h5, h6, p, label, span, div, body {
+    color: #e6e6e6;
+}
+
+/* METRIC VALUE STYLE */
+[data-testid="stMetricValue"] {
+    font-size: 30px;
+    color: #76ff03 !important; /* neon green */
+}
+</style>
+"""
+st.markdown(dark_ai_css, unsafe_allow_html=True)
 
 # -------------------- HEADER --------------------
 st.markdown(
     """
     <div style="padding: 10px 0 20px 0;">
-        <h1 style="font-size: 40px; margin-bottom: 5px;">
-            🧠 Harsha's <span style="color:#ff4b4b;">AI Resume & JD Matcher</span>
+        <h1 style="font-size: 42px; margin-bottom: 5px; color:#76ff03;">
+            🤖 Harsha's <span style="color:#00e5ff;">AI Resume & JD Matcher</span>
         </h1>
-        <p style="font-size:16px; color:#555; max-width: 900px;">
-            Paste or upload a Job Description (JD) and your Resume. 
-            This tool compares skills, highlights gaps, and helps you tailor your profile for each role.
+        <p style="font-size:17px; color:#cccccc; max-width: 900px;">
+            AI-powered smart scanner that compares your Resume & Job Description using NLP and skills matching.
         </p>
     </div>
     """,
@@ -40,21 +99,19 @@ with st.sidebar:
     st.markdown("### 👨‍💻 Built by Harsha Reddy")
     st.write(
         "Aspiring Data / AI / Cloud Engineer.\n\n"
-        "This project uses Python + NLP (spaCy) to compare resumes with job descriptions."
+        "This project uses **spaCy NLP**, advanced skill matching, and Streamlit UI."
     )
 
     st.markdown("#### 🔗 Links")
     st.markdown("- GitHub: [Harshareddy17](https://github.com/Harshareddy17)")
-    # If you have LinkedIn, uncomment and add your link:
-    # st.markdown("- LinkedIn: [Your Name](https://www.linkedin.com/in/your-link/)")
 
     st.markdown("#### ⚙️ How to use")
     st.markdown(
         """
-        1. Paste or upload the **JD**  
-        2. Paste or upload your **Resume**  
-        3. Click **Analyze Match**  
-        4. See match score, matched and missing skills
+        1. Paste or upload JD  
+        2. Paste or upload Resume  
+        3. Click **Analyze**  
+        4. See match score + insights  
         """
     )
 
@@ -66,14 +123,14 @@ with tab_paste:
     jd_text_input = st.text_area(
         "Job Description",
         height=180,
-        placeholder="Paste the job description here...",
+        placeholder="Paste JD here...",
     )
 
     st.subheader("Paste Resume")
     resume_text_input = st.text_area(
         "Resume",
         height=220,
-        placeholder="Paste your resume here...",
+        placeholder="Paste resume here...",
     )
 
 with tab_upload:
@@ -99,127 +156,86 @@ if st.button("🔍 Analyze Match", type="primary"):
     jd_text = ""
     resume_text = ""
 
-    # Priority: pasted text; if empty, use uploaded file
     if jd_text_input.strip():
         jd_text = jd_text_input
-    elif jd_file is not None:
+    elif jd_file:
         jd_text = read_uploaded_file(jd_file)
 
     if resume_text_input.strip():
         resume_text = resume_text_input
-    elif resume_file is not None:
+    elif resume_file:
         resume_text = read_uploaded_file(resume_file)
 
     if not jd_text or not resume_text:
-        st.error(
-            "Please provide both Job Description and Resume (either by pasting or uploading).")
+        st.error("Please provide both Job Description and Resume.")
     else:
-        with st.spinner("Analyzing with NLP and skill matching..."):
-            # Clean text
+        with st.spinner("Analyzing with AI..."):
             jd_clean = clean_text(jd_text)
             resume_clean = clean_text(resume_text)
 
-            # Skill extraction (hard + soft)
             jd_hard, jd_soft = extract_skills_from_text(jd_clean)
             resume_hard, resume_soft = extract_skills_from_text(resume_clean)
 
-            jd_all_skills = jd_hard.union(jd_soft)
-            resume_all_skills = resume_hard.union(resume_soft)
+            jd_all = jd_hard.union(jd_soft)
+            res_all = resume_hard.union(resume_soft)
 
-            # Score + matched / missing
-            score, matched, missing = calculate_match_score(
-                jd_all_skills, resume_all_skills)
+            score, matched, missing = calculate_match_score(jd_all, res_all)
 
-            # Keywords
             jd_keywords = extract_keywords_nlp(jd_text)
             resume_keywords = extract_keywords_nlp(resume_text)
 
-            # Role guess
             guessed_role = guess_role_from_jd(jd_text)
 
-        # -------------------- SUMMARY METRICS --------------------
+        # METRICS
         col_score, col_role = st.columns([1, 2])
-
         with col_score:
-            st.metric(label="Match Score", value=f"{score}%")
-
+            st.metric("Match Score", f"{score}%")
         with col_role:
-            st.write(f"**Guessed Role (from JD):** `{guessed_role}`")
+            st.write(f"**AI-Predicted Role:** `{guessed_role}`")
 
-        # Bar chart for matched vs missing
+        # BAR CHART
         df_score = build_score_dataframe(matched, missing)
         st.bar_chart(df_score.set_index("Category"))
 
-        # -------------------- SKILL DETAILS --------------------
+        # SKILL DETAILS
         st.markdown("#### ✅ Skills Overview")
 
         col1, col2 = st.columns(2)
 
         with col1:
             st.subheader("Matched Skills")
-            if matched:
-                st.write(", ".join(sorted(matched)))
-            else:
-                st.write("_No JD skills found in your resume._")
+            st.write(", ".join(sorted(matched)) if matched else "_None_")
 
         with col2:
-            st.subheader("Missing Skills (from JD)")
-            if missing:
-                st.write(", ".join(sorted(missing)))
-                st.info(
-                    "Consider adding projects, certifications, or bullets to cover some of these "
-                    "skills if you actually have experience with them."
-                )
-            else:
-                if jd_all_skills:
-                    st.write(
-                        "_You cover all detectable JD skills in your resume!_")
-                else:
-                    st.write(
-                        "_JD does not contain enough clear skills. Try with a more detailed, technical JD._"
-                    )
+            st.subheader("Missing Skills")
+            st.write(", ".join(sorted(missing)) if missing else "_None_")
 
-        # -------------------- KEYWORDS --------------------
+        # KEYWORDS
         st.markdown("---")
-        st.markdown("### 🔑 Keyword Summary (NLP-based)")
+        st.markdown("### 🔑 NLP Keyword Summary")
 
         col3, col4 = st.columns(2)
-
         with col3:
-            st.markdown("**Top JD Keywords**")
-            if jd_keywords:
-                st.write(", ".join(jd_keywords))
-            else:
-                st.write("_No strong keywords detected in JD._")
-
+            st.write("**JD Keywords:**")
+            st.write(", ".join(jd_keywords))
         with col4:
-            st.markdown("**Top Resume Keywords**")
-            if resume_keywords:
-                st.write(", ".join(resume_keywords))
-            else:
-                st.write("_No strong keywords detected in resume._")
+            st.write("**Resume Keywords:**")
+            st.write(", ".join(resume_keywords))
 
-        # -------------------- IMPROVEMENT TIPS --------------------
+        # TIPS
         st.markdown("---")
-        st.markdown("### 💡 How You Can Improve Alignment")
-
-        if not jd_all_skills:
-            st.write(
-                "- The JD is very generic or high-level. Try another JD with more explicit skill requirements.\n"
-                "- This tool works best for roles that list specific technical or domain skills."
-            )
-        else:
-            st.write(
-                "- Highlight **matched skills** more clearly in your resume (Summary / Skills / Projects sections).\n"
-                "- For **missing skills**, consider learning them or adding them only if you truly know them.\n"
-                "- Rephrase some bullet points using the same language as the JD (without copying exact sentences)."
-            )
+        st.markdown("### 💡 Suggestions")
+        st.write(
+            "- Strengthen important keywords in your resume.\n"
+            "- Add missing skills only if you genuinely have them.\n"
+            "- Rewrite bullet points to better match JD wording."
+        )
 
 # -------------------- FOOTER --------------------
 st.markdown("---")
 st.markdown(
-    "<p style='text-align:center; color:#888; font-size:13px;'>"
-    "Made with ❤️ in Python & Streamlit by Harsha Reddy"
+    "<p style='text-align:center; color:#aaa; font-size:13px;'>"
+    "Made with ⚡ by <b>Harsha Reddy</b>"
     "</p>",
     unsafe_allow_html=True,
 )
