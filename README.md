@@ -12,7 +12,8 @@ An intelligent NLP-powered web application that analyzes a Resume and Job Descri
 
 ✔ Summary Keywords
 
-🚀 Live App: <YOUR_STREAMLIT_URL_HERE>
+🚀 Live App:🚀 Live App: https://ai-resume-matcher-harshareddy17.streamlit.app
+
 📦 GitHub Repo: https://github.com/Harshareddy17/ai-resume-matcher
 
 ✨ Features
