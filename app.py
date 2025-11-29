@@ -1,6 +1,9 @@
 # app.py
 
 import streamlit as st
+import time
+from io import BytesIO
+from fpdf import FPDF
 
 from utils import (
     read_uploaded_file,
@@ -48,7 +51,7 @@ dark_ai_css = """
 
 /* SIDEBAR WRAPPER */
 [data-testid="stSidebar"] {
-    background: rgba(0,0,0,0);  /* transparent behind glass panel */
+    background: rgba(0,0,0,0);
 }
 
 /* SIDEBAR GLASS PANEL */
@@ -68,6 +71,21 @@ dark_ai_css = """
 /* GENERAL TEXT COLOR (CENTER) */
 h1, h2, h3, h4, h5, h6, p, label, span, div, body {
     color: #e6e6e6;
+}
+
+/* MAIN ANALYZE BUTTON STYLING */
+div.stButton > button {
+    background: linear-gradient(135deg, #00e5ff 0%, #76ff03 100%) !important;
+    color: #000000 !important;
+    border-radius: 999px !important;
+    padding: 0.5rem 1.8rem !important;
+    border: none !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.6);
+}
+div.stButton > button:hover {
+    box-shadow: 0 0 26px rgba(118, 255, 3, 0.9);
+    transform: translateY(-1px);
 }
 
 /* METRIC VALUE STYLE */
@@ -96,22 +114,36 @@ st.markdown(
 
 # -------------------- SIDEBAR --------------------
 with st.sidebar:
-    st.markdown("### 👨‍💻 Built by Harsha Reddy")
+    # profile image
+    st.markdown(
+        """
+        <div style="text-align:center; margin-bottom: 10px;">
+            <img src="https://avatars.githubusercontent.com/u/9919?s=200&v=4"
+                 style="width:90px;height:90px;border-radius:50%;border:2px solid #00e5ff;object-fit:cover;">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### 👨‍💻 Harsha Reddy")
     st.write(
-        "Aspiring Data / AI / Cloud Engineer.\n\n"
-        "This project uses **spaCy NLP**, advanced skill matching, and Streamlit UI."
+        "Aspiring **Data / AI / Cloud Engineer**.\n\n"
+        "This project uses **spaCy NLP**, skill matching, and Streamlit "
+        "to evaluate how well a resume fits a job description."
     )
 
     st.markdown("#### 🔗 Links")
     st.markdown("- GitHub: [Harshareddy17](https://github.com/Harshareddy17)")
+    # Add when ready:
+    # st.markdown("- LinkedIn: <your-link>")
 
     st.markdown("#### ⚙️ How to use")
     st.markdown(
         """
         1. Paste or upload JD  
         2. Paste or upload Resume  
-        3. Click **Analyze**  
-        4. See match score + insights  
+        3. Click **Analyze Match**  
+        4. Download the **PDF report**  
         """
     )
 
@@ -169,7 +201,16 @@ if st.button("🔍 Analyze Match", type="primary"):
     if not jd_text or not resume_text:
         st.error("Please provide both Job Description and Resume.")
     else:
+        pdf_bytes = None
+
+        # Fake progress + spinner
         with st.spinner("Analyzing with AI..."):
+            progress = st.progress(0)
+            for p in range(0, 101, 20):
+                time.sleep(0.07)
+                progress.progress(p)
+
+            # ------------- NLP + SKILL LOGIC -------------
             jd_clean = clean_text(jd_text)
             resume_clean = clean_text(resume_text)
 
@@ -185,6 +226,64 @@ if st.button("🔍 Analyze Match", type="primary"):
             resume_keywords = extract_keywords_nlp(resume_text)
 
             guessed_role = guess_role_from_jd(jd_text)
+
+            progress.empty()
+
+            # ------------- BUILD PDF REPORT -------------
+            try:
+                pdf = FPDF()
+                pdf.set_auto_page_break(auto=True, margin=15)
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "AI Resume & JD Match Report", ln=True)
+                pdf.ln(4)
+
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 8, f"Match Score: {score}%", ln=True)
+                pdf.cell(0, 8, f"Predicted Role: {guessed_role}", ln=True)
+                pdf.ln(4)
+
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, "Matched Skills:", ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 6, ", ".join(sorted(matched))
+                               if matched else "None")
+                pdf.ln(2)
+
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, "Missing Skills:", ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 6, ", ".join(sorted(missing))
+                               if missing else "None")
+                pdf.ln(2)
+
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, "JD Keywords:", ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 6, ", ".join(jd_keywords))
+                pdf.ln(2)
+
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, "Resume Keywords:", ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 6, ", ".join(resume_keywords))
+                pdf.ln(4)
+
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, "Notes:", ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(
+                    0,
+                    6,
+                    "Use this report to adjust your resume towards the JD. "
+                    "Add missing skills only if you actually know them.",
+                )
+
+                pdf_bytes = pdf.output(dest="S").encode("latin-1")
+            except Exception:
+                pdf_bytes = None
+
+        # ------------- SHOW RESULTS ON PAGE -------------
 
         # METRICS
         col_score, col_role = st.columns([1, 2])
@@ -230,6 +329,16 @@ if st.button("🔍 Analyze Match", type="primary"):
             "- Add missing skills only if you genuinely have them.\n"
             "- Rewrite bullet points to better match JD wording."
         )
+
+        # PDF DOWNLOAD
+        if pdf_bytes:
+            st.markdown("### 📥 Download Report")
+            st.download_button(
+                label="Download PDF Report",
+                data=pdf_bytes,
+                file_name="resume_jd_match_report.pdf",
+                mime="application/pdf",
+            )
 
 # -------------------- FOOTER --------------------
 st.markdown("---")
